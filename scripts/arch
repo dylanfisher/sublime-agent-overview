@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Enforce the tier dependency direction in docs/map.md: plugin -> agents -> core.
+
+Parses every import in each tier and fails on any edge the map forbids.
+`sublime` / `sublime_plugin` count as their own tier, reachable only from plugin.
+"""
+
+import ast
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+# tier -> source files, and tier -> tiers it may import from.
+TIERS = {
+    "core": sorted((ROOT / "core").rglob("*.py")),
+    "agents": sorted((ROOT / "agents").rglob("*.py")),
+    "plugin": [ROOT / "sublime_agent.py"],
+}
+ALLOWED = {"core": set(), "agents": {"core"}, "plugin": {"core", "agents", "sublime"}}
+SUBLIME = {"sublime", "sublime_plugin"}
+
+
+def imported_tiers(path: Path):
+    """Yield (lineno, tier) for every import of a project tier or the sublime API."""
+    package = path.relative_to(ROOT).parent.parts
+    for node in ast.walk(ast.parse(path.read_text(), str(path))):
+        if isinstance(node, ast.Import):
+            names = [(node.lineno, alias.name.split(".")) for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            base = list(package[: len(package) - node.level + 1]) if node.level else []
+            mod = base + (node.module.split(".") if node.module else [])
+            # `from . import x` at the package root: the tier is the imported name.
+            names = [(node.lineno, mod or [a.name]) for a in node.names]
+        else:
+            continue
+        for lineno, parts in names:
+            if parts[0] in SUBLIME:
+                yield lineno, "sublime"
+            elif parts[0] in TIERS and parts[0] != "plugin":
+                yield lineno, parts[0]
+
+
+errors = []
+for tier, files in TIERS.items():
+    for path in files:
+        for lineno, target in imported_tiers(path):
+            if target != tier and target not in ALLOWED[tier]:
+                rel = path.relative_to(ROOT)
+                errors.append(f"{rel}:{lineno}: {tier} may not import {target}")
+
+if errors:
+    print("tier violations (see docs/map.md):", *errors, sep="\n  ", file=sys.stderr)
+    sys.exit(1)
+print(f"tier boundaries hold across {sum(len(f) for f in TIERS.values())} files")

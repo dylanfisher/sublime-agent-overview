@@ -16,48 +16,41 @@ against a codebase you haven't searched.
 
 | Before adding… | Run |
 |---|---|
-| any named thing | `rg -i '<name>' --type {{RG_TYPE}}` |
-| a primitive | `ls {{PRIMITIVES}}/` |
-| a component | `ls {{COMPONENTS}}/` |
-| a helper / util | `rg 'export (function\|const)' {{LIB}}/` |
-| a config value | `rg '<KEY>' {{CONFIG}}` — config is read in one module only |
-| a type / interface | `rg '(type\|interface\|class) <Name>'` |
+| any named thing | `rg -i '<name>' --type py` |
+| a core module | `ls core/` |
+| an agent adapter | `ls agents/` |
+| a helper / function | `rg '^def ' core/` |
+| a setting | `rg '<key>' SublimeAgent.sublime-settings` — read in `sublime_agent.py` only |
+| a type / class | `rg '^class <Name>'` |
 
 If a search turns up something close but not identical, that's the second occurrence. Use it or
 duplicate it — do not abstract yet (principle 3).
 
 ## Tiers
 
-The default vocabulary below is a recommendation, not a mandate. **Rename these to whatever fits
-the project** — `modules`, `services`, `packages`, `internal` are all fine. What must not change is
-the dependency direction.
+The repo root is the Sublime package. Tests live in `tests/` and may import any tier.
 
 | Tier | Path | What belongs here | May import from |
 |---|---|---|---|
-| **primitives** | `{{PRIMITIVES}}` | Smallest reusable units. No project-specific knowledge, no I/O, no config reads. Portable to another project as-is. | nothing in this table |
-| **components** | `{{COMPONENTS}}` | Compositions that know about this project — its domain types, its config, its conventions. | primitives |
-| **features** | `{{FEATURES}}` | Vertical slices a user or caller actually invokes. Routes, commands, endpoints, screens. | components, primitives |
-| **lib** | `{{LIB}}` | Pure cross-cutting helpers. No state. | primitives |
-| **config** | `{{CONFIG}}` | The one module that reads the environment and throws on a missing key. | nothing |
+| **core** | `core` | Agent-neutral logic: event model, session state, routing, status/log formatting, the HTTP server. Pure Python stdlib — never imports `sublime`. Unit-testable outside the editor. | nothing in this table |
+| **agents** | `agents` | One adapter module per agent, plus the registry in `agents/__init__.py`. Maps raw payloads to `core`'s event model; may edit that agent's own config for hook install. | core |
+| **plugin** | `sublime_agent.py` | The Sublime entry point: lifecycle, commands, settings, all `sublime` API calls. The only module that imports `sublime` / `sublime_plugin`. | core, agents |
 
-**Dependency direction is one-way: features → components → primitives.** Never upward, never
-sideways between features. If a primitive needs something from a component, it isn't a primitive.
+**Dependency direction is one-way: plugin → agents → core.** Never upward. Nothing outside
+`agents/` names a specific agent — adding one means adding a module and registering it.
 
-Enforce this with a tool rather than in prose — `eslint-plugin-import`'s `no-restricted-paths`,
-`dependency-cruiser`, `import-linter` (Python), or `go-arch-lint`. Wire it into `./scripts/check`
-and this paragraph becomes the only place it's written down.
-
-If the stack has no such plugin, write `scripts/arch`: hold the tier table above as a map of tier →
-tiers it may import from, walk the source files under each tier, parse their import statements, and
-fail on any edge the map forbids. That is about forty lines in any language, and worth them — an
-unenforced dependency rule is one that has already been broken somewhere nobody has looked.
+Enforced by `scripts/arch` (run by `./scripts/check`): it holds the table above as a map and fails
+on any import edge it forbids, including `sublime` outside the plugin tier.
 
 ## Naming
 
 - One thing per file; the filename is the thing's name.
-- Directory names plural, file names singular: `{{PRIMITIVES}}/button`, not `.../buttons`.
-- Tests sit beside what they test, or mirror the tree — pick one, never both.
-- {{Any project-specific convention: prefixes, suffixes, casing the formatter can't enforce}}
+- Directory names plural, file names singular: `agents/claude.py`, not `.../claudes.py`.
+- Tests mirror the tree under `tests/`: `core/status.py` → `tests/core/test_status.py`.
+- Imports inside the package are relative (`from ..core import event`) — Sublime loads it as
+  `SublimeAgent`, so absolute `core.` imports break in the editor.
+- Runtime code is stdlib only and runs on Python 3.8: no `match`, no `X | Y` types at runtime.
+- Stubs for the `sublime` API live in `typings/` and cover only what the plugin calls.
 
 ## Promotion
 
@@ -69,6 +62,6 @@ Things move up a tier deliberately, never by accident:
 
 A promotion is its own commit, separate from whatever work revealed it (principle 4).
 
-<!-- paths: {{PRIMITIVES}} {{COMPONENTS}} {{FEATURES}} {{LIB}} {{CONFIG}} -->
+<!-- paths: core agents sublime_agent.py -->
 <!-- ↑ scripts/check verifies every path above exists. Keep it in sync with the Tiers table;
      a rename that misses this line fails the gate, which is the point. -->

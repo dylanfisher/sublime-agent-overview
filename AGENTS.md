@@ -1,26 +1,16 @@
 # AGENTS.md
 
-<!-- ══════════════════════════════════════════════════════════════
-     TEMPLATE — NOT YET INITIALIZED
-
-     Agent: if this block is still present, this repo was just cloned
-     from the starter and has not been set up. Do NOT infer the answers
-     by scanning the filesystem — run the interview in docs/scaffold.md
-     (or the /scaffold command) with the user, fill in every {{...}}
-     below, then delete this block.
-     ══════════════════════════════════════════════════════════════ -->
-
 Instructions for AI coding agents working in this repo. Humans: see [README.md](README.md).
 
 **Keep this file under ~50 lines.** Anything longer lives in `docs/` and is linked from here.
 
 ## Stack
 
-- **Language:** {{LANGUAGE + VERSION}}
-- **Package manager:** {{PACKAGE MANAGER}}
-- **Framework:** {{FRAMEWORK, or "none"}}
-- **Test framework:** {{TEST FRAMEWORK}}
-- **Layout:** {{where source lives, where tests live}} — tiers and search recipes: [docs/map.md](docs/map.md)
+- **Language:** Python 3.8 (Sublime Text 4 plugin host), pinned in `.python-version`
+- **Package manager:** uv (dev tools only — ruff, basedpyright strict, pytest)
+- **Framework:** Sublime Text 4 plugin API
+- **Test framework:** pytest
+- **Layout:** repo root is the package; `core/` ← `agents/` ← `sublime_agent.py`, tests in `tests/` — tiers and search recipes: [docs/map.md](docs/map.md)
 
 ## Commands
 
@@ -48,12 +38,10 @@ Non-negotiable, regardless of stack. Rationale: [docs/principles.md](docs/princi
 
 ## Boundaries
 
-<!-- Highest-value section. Be specific about what must NOT be touched directly.
-     Delete these examples and replace with real ones. -->
-- {{e.g. Never edit `db/migrations/` by hand — run `<migration command>`.}}
-- {{e.g. Never commit to `main` — branch first.}}
-- {{e.g. `src/generated/` is generated — edit the schema, then regenerate.}}
-- Never write, print, or `op read` a plaintext secret. `.env.example` holds `op://` references; they resolve via `op run` at runtime.
+- Runtime code is stdlib-only and must run on Python 3.8. Dev tools go in the `dev` group, nothing else.
+- Never edit `uv.lock` by hand — `uv add --dev <pkg>` (after asking) or `uv lock`.
+- Tests never read or write the real `~/.claude/settings.json` — pass a temp path.
+- Never write or print a plaintext secret. There are none today; see `.env.example`.
 
 ## Definition of done
 

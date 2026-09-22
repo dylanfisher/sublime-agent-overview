@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(./scripts/arch)",
       "Bash(./scripts/check)",
       "Bash(./scripts/dev:*)",
       "Bash(./scripts/setup)",
