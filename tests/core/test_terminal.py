@@ -1,4 +1,10 @@
-from SublimeAgentOverview.core.terminal import Terminal, focus, focus_command, parse
+from SublimeAgentOverview.core.terminal import (
+    Terminal,
+    focus,
+    focus_command,
+    open_command,
+    parse,
+)
 
 
 def test_parse_takes_what_ps_prints() -> None:
@@ -31,3 +37,7 @@ def test_focus_reports_why_it_failed() -> None:
     assert focus(["sleep", "5"], timeout=0.1) == "sleep took longer than 0.1s"
     error = focus(["/nonexistent/osascript"])
     assert error is not None and "/nonexistent/osascript" in error
+
+
+def test_open_passes_the_folder_as_an_argument() -> None:
+    assert open_command("iTerm", "/p/my app") == ["open", "-a", "iTerm", "/p/my app"]

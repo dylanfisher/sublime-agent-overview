@@ -18,7 +18,7 @@ contexts:
       push: help
 
     - match: '^Agent Overview\n'
-      scope: markup.heading.sublime-agent-overview.title
+      scope: comment.other.sublime-agent-overview.title
     - match: '^(Server:)\s+(.+)\n'
       captures:
         1: comment.other.sublime-agent-overview.header

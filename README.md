@@ -14,6 +14,7 @@ Live activity from AI coding agents, shown inside Sublime Text 4:
   Server:   127.0.0.1:47823
   Sessions: 4 sessions in 3 projects  ·  ■ 1  ▶ 1  ◐ 1  ✓ 1  ·  ◦ 2 subagents
 
+
   sublime-agent  ~/projects/sublime-agent  ·  2 sessions
     ▶ working     4m12s       Edit status.py
       ├ ◦         40s         Explore  "find agents view callers"  Grep _state
@@ -37,6 +38,9 @@ callers' finished"`) in place of a prompt. Keys: `n`/`p` next/previous session,
   `x` dismiss a session that ended without saying so, `l` show the log, `r` refresh and go to the first session.
 - **Agents output panel** — a timestamped log, one line per event
   (**SublimeAgentOverview: Show Log** in the Command Palette).
+- **Open Terminal** — **SublimeAgentOverview: Open Terminal** in the Command Palette focuses the
+  terminal tab of this project's latest agent. If no agent tab is known, it opens a new window of
+  the `terminal_app` setting (default `"Terminal"`) in the project folder.
 - **A flagged tab title** — `🔴 Agents — needs input` while any agent waits on a permission
   prompt, a plan approval, or an answer.
 

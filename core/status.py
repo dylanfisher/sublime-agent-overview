@@ -187,7 +187,7 @@ def _summary(sessions: List[Session]) -> str:
 def agents_view(sessions: Iterable[Session], now: float, server: str) -> AgentsView:
     """The Agents view: a header, then every session grouped by project, in first-seen order."""
     ordered = sorted(sessions, key=lambda s: s.order)
-    lines = [HEADING, f"Server:   {server}", f"Sessions: {_summary(ordered)}", ""]
+    lines = [HEADING, f"Server:   {server}", f"Sessions: {_summary(ordered)}", "", ""]
     owners: Dict[int, Key] = {}
     rows: List[int] = []
     headers: List[int] = []

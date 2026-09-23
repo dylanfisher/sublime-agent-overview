@@ -14,7 +14,7 @@ from SublimeAgentOverview.core.event import (
     TOOL_START,
     AgentEvent,
 )
-from SublimeAgentOverview.core.state import Session, SessionStore
+from SublimeAgentOverview.core.state import Session, SessionStore, latest_in
 from SublimeAgentOverview.core.terminal import Terminal
 
 
@@ -198,3 +198,17 @@ def test_terminal_is_kept_when_a_later_event_has_none() -> None:
     tab = Terminal("Apple_Terminal", "/dev/ttys010")
     session = apply_all(store, event(PROMPT)._replace(terminal=tab), event(DONE))
     assert session.terminal == tab
+
+
+def test_latest_in_picks_the_last_changed_session_with_a_terminal_under_the_folder() -> None:
+    store = SessionStore()
+    tab = Terminal("Apple_Terminal", "/dev/ttys010")
+    other = Terminal("Apple_Terminal", "/dev/ttys011")
+    store.apply(event(PROMPT, session="old", cwd="/p/app")._replace(terminal=tab), "Claude", 0)
+    store.apply(event(PROMPT, session="new", cwd="/p/app/src")._replace(terminal=other), "C", 5)
+    store.apply(event(PROMPT, session="bare", cwd="/p/app"), "Claude", 9)
+    store.apply(event(PROMPT, session="near", cwd="/p/apple")._replace(terminal=tab), "C", 9)
+    latest = latest_in(store.all(), "/p/app/")
+    assert latest is not None and latest.key == ("claude", "new")
+    assert latest_in(store.all(), "/q") is None
+    assert latest_in(store.all(), "/") is not None

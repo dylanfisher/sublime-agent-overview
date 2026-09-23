@@ -2,4 +2,7 @@
   // Localhost port the plugin listens on for agent events. The installed hook
   // commands include it, so re-run "SublimeAgentOverview: Install Hooks…" after changing it.
   "port": 47823,
+  // App that "SublimeAgentOverview: Open Terminal" opens a new window of, when no agent's
+  // terminal tab is known for the project. Any app `open -a` accepts, e.g. "iTerm".
+  "terminal_app": "Terminal",
 }

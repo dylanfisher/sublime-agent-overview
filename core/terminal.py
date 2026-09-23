@@ -83,8 +83,13 @@ def focus_command(terminal: Terminal) -> Optional[List[str]]:
     return None if script is None else ["osascript", "-e", script, terminal.tty]
 
 
+def open_command(app: str, folder: str) -> List[str]:
+    """The command that opens a new window of terminal `app` in `folder` (macOS `open`)."""
+    return ["open", "-a", app, folder]
+
+
 def focus(command: List[str], timeout: float = FOCUS_TIMEOUT_SECONDS) -> Optional[str]:
-    """Run a focus_command; why it failed, or None when it worked."""
+    """Run a focus_command or open_command; why it failed, or None when it worked."""
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:

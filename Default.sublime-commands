@@ -1,5 +1,6 @@
 [
   { "caption": "SublimeAgentOverview: Show Agents", "command": "sublime_agent_overview_show" },
+  { "caption": "SublimeAgentOverview: Open Terminal", "command": "sublime_agent_overview_open_terminal" },
   { "caption": "SublimeAgentOverview: Show Log", "command": "sublime_agent_overview_show_log" },
   { "caption": "SublimeAgentOverview: Install Hooks…", "command": "sublime_agent_overview_install_hooks" },
   { "caption": "SublimeAgentOverview: Uninstall Hooks…", "command": "sublime_agent_overview_uninstall_hooks" },

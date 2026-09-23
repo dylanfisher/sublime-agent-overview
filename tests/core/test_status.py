@@ -74,7 +74,7 @@ def render(*events: Tuple[float, AgentEvent], now: float = 50) -> AgentsView:
 def body(view: AgentsView) -> str:
     """The view between the header and the help block."""
     assert view.text.endswith(HELP)
-    return view.text[: -len(HELP)].split("\n", 4)[4]
+    return view.text[: -len(HELP)].split("\n", 5)[5]
 
 
 def row(*events: AgentEvent) -> str:
@@ -144,7 +144,9 @@ def test_working_shows_turn_length_and_asks_show_time_waiting() -> None:
 
 def test_no_sessions_says_so() -> None:
     for view in (render(), render((0, event(PROMPT)), (0, event(SESSION_END)))):
-        assert view.text == f"{HEADING}\nServer:   {SERVER}\nSessions: none\n\n{NO_AGENTS}\n{HELP}"
+        assert (
+            view.text == f"{HEADING}\nServer:   {SERVER}\nSessions: none\n\n\n{NO_AGENTS}\n{HELP}"
+        )
         assert (view.owners, view.rows, view.projects) == ({}, [], [])
 
 

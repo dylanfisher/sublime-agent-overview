@@ -13,9 +13,9 @@ from .core.adapter import Adapter
 from .core.event import AgentEvent
 from .core.fingerprint import changed, digests
 from .core.server import HOST, EventServer, Inbox, handle_payload
-from .core.state import Key, Session, SessionStore
+from .core.state import Key, Session, SessionStore, latest_in
 from .core.status import VIEW_NAME, AgentsView, agents_view, log_line, step, view_title
-from .core.terminal import SCRIPTS, Terminal, focus, focus_command
+from .core.terminal import SCRIPTS, Terminal, focus, focus_command, open_command
 
 NAME = "SublimeAgentOverview"  # prefixes console and status bar messages
 SETTINGS = NAME + ".sublime-settings"
@@ -53,6 +53,13 @@ def _port() -> int:
     if not isinstance(port, int):
         raise ValueError(f'"port" in {SETTINGS} must be an integer, got {port!r}')
     return port
+
+
+def _terminal_app() -> str:
+    app = sublime.load_settings(SETTINGS).get("terminal_app")
+    if not isinstance(app, str) or not app.strip():
+        raise ValueError(f'"terminal_app" in {SETTINGS} must be an app name, got {app!r}')
+    return app
 
 
 def _agents_views(windows: List[sublime.Window]) -> List[sublime.View]:
@@ -308,12 +315,12 @@ class SublimeAgentOverviewOpenCommand(_Hidden, sublime_plugin.TextCommand):
         window.bring_to_front()
 
 
-def _focus(terminal: Terminal, command: List[str]) -> None:
+def _run(what: str, command: List[str]) -> None:
     """Async thread: run `command`, reporting a failure — osascript can take a moment."""
     error = focus(command)
     if error is not None:
-        _console(f"focusing {terminal.tty} failed: {error}")
-        sublime.status_message(f"{NAME}: could not focus terminal — see console")
+        _console(f"{what} failed: {error}")
+        sublime.status_message(f"{NAME}: {what} failed — see console")
 
 
 class SublimeAgentOverviewFocusTerminalCommand(_Hidden, sublime_plugin.TextCommand):
@@ -336,7 +343,37 @@ class SublimeAgentOverviewFocusTerminalCommand(_Hidden, sublime_plugin.TextComma
                 f"{NAME}: can't focus {terminal.program} tabs (supported: {supported})"
             )
             return
-        sublime.set_timeout_async(lambda: _focus(terminal, command))
+        sublime.set_timeout_async(lambda: _run(f"focusing {terminal.tty}", command))
+
+
+def _project_folder(window: sublime.Window) -> Optional[str]:
+    """The window's folder holding the active file; its first folder if none does."""
+    folders = window.folders()
+    view = window.active_view()
+    path = view.file_name() if view is not None else None
+    holding = [
+        f for f in folders if path is not None and path.startswith(f.rstrip(os.sep) + os.sep)
+    ]
+    return max(holding, key=len) if holding else next(iter(folders), None)
+
+
+class SublimeAgentOverviewOpenTerminalCommand(sublime_plugin.WindowCommand):
+    """Focus the terminal tab of this project's latest agent, or open a terminal in the project."""
+
+    def run(self) -> None:
+        folder = _project_folder(self.window)
+        if folder is None:
+            self.window.status_message(f"{NAME}: open a folder to open a terminal in it")
+            return
+        session = latest_in(_store.all(), folder)
+        terminal = session.terminal if session is not None else None
+        command = focus_command(terminal) if terminal is not None else None
+        if terminal is not None and command is not None:
+            what = f"focusing {terminal.tty}"
+        else:
+            app = _terminal_app()
+            command, what = open_command(app, folder), f"opening {app} in {folder}"
+        sublime.set_timeout_async(lambda: _run(what, command))
 
 
 class SublimeAgentOverviewDismissCommand(_Hidden, sublime_plugin.TextCommand):

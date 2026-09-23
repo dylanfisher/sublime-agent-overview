@@ -1,6 +1,7 @@
 """Live session state, keyed by (agent, session_id) so concurrent sessions never collide."""
 
-from typing import Dict, List, Optional, Tuple
+import os
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from .event import (
     DONE,
@@ -79,6 +80,18 @@ def _end_subagent(session: Session, event: AgentEvent) -> None:
     subagent = _find(session, event.subagent, event.tool or "")
     if subagent is not None:
         session.subagents.remove(subagent)
+
+
+def latest_in(sessions: Iterable[Session], folder: str) -> Optional[Session]:
+    """The session under `folder` whose state changed last, among those with a known terminal."""
+    root = os.path.normpath(folder)
+    inside = [
+        s
+        for s in sessions
+        if s.terminal is not None
+        and (os.path.normpath(s.cwd) + os.sep).startswith(root.rstrip(os.sep) + os.sep)
+    ]
+    return max(inside, key=lambda s: s.since) if inside else None
 
 
 class SessionStore:
