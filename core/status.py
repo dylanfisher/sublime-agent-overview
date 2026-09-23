@@ -67,6 +67,7 @@ STATE_WIDTH = len("  ") + len("● ") + LABEL_WIDTH  # "  ● permission"
 ELAPSED_WIDTH = len("99h59m ago")
 DETAIL_LIMIT = 60
 QUOTE_LIMIT = 50
+LOG_LIMIT = 60
 
 
 class AgentsView(NamedTuple):
@@ -235,7 +236,7 @@ def _log_text(event: AgentEvent) -> str:
     if kind == TOOL_END:
         return f"{_tool_label(event.tool, event.target)} ✓"
     if kind == PROMPT:
-        return "prompt: {}".format(shorten(event.message or "", 60))
+        return "prompt: {}".format(shorten(event.message or "", LOG_LIMIT))
     if kind == NEEDS_INPUT:
         return "needs input: {}".format(event.message or "")
     if kind == PERMISSION:
@@ -245,7 +246,9 @@ def _log_text(event: AgentEvent) -> str:
     if kind == ERROR:
         return "error: {}".format(event.message or "")
     if kind == SUBAGENT_START:
-        return "subagent {} started: {}".format(event.tool or "", shorten(event.message or "", 60))
+        return "subagent {} started: {}".format(
+            event.tool or "", shorten(event.message or "", LOG_LIMIT)
+        )
     if kind == SUBAGENT_END:
         return "subagent {} finished".format(event.tool or event.subagent or "")
     if kind == SESSION_START:
@@ -258,5 +261,5 @@ def _log_text(event: AgentEvent) -> str:
 def log_line(event: AgentEvent, display_name: str, now: float) -> str:
     """One output panel line, e.g. "14:03:22 Claude [a1b2c3d4] Edit foo.py"."""
     stamp = time.strftime("%H:%M:%S", time.localtime(now))
-    source = "↳ " if event.subagent is not None and event.kind in (TOOL_START, TOOL_END) else ""
+    source = "↳ " if event.from_subagent else ""
     return f"{stamp} {display_name} [{event.session_id[:8]}] {source}{_log_text(event)}\n"

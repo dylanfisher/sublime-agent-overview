@@ -8,7 +8,7 @@ import pytest
 
 from SublimeAgentOverview.core.adapter import Adapter
 from SublimeAgentOverview.core.event import PROMPT, AgentEvent
-from SublimeAgentOverview.core.server import EventServer, handle_payload
+from SublimeAgentOverview.core.server import EventServer, Inbox, handle_payload
 
 
 class FakeAdapter(Adapter):
@@ -105,3 +105,15 @@ def test_stop_releases_the_port() -> None:
     srv.stop()
     with socket.socket() as s:
         s.bind(("127.0.0.1", port))
+
+
+def _event(session_id: str) -> AgentEvent:
+    return AgentEvent("fake", session_id, "/p", PROMPT, None, None, None, {})
+
+
+def test_inbox_asks_for_one_drain_per_burst() -> None:
+    inbox = Inbox()
+    assert [inbox.put(_event(s)) for s in "abc"] == [True, False, False]
+    assert [e.session_id for e in inbox.drain()] == ["a", "b", "c"]
+    assert inbox.drain() == []
+    assert inbox.put(_event("d")) is True  # the next burst schedules its own drain

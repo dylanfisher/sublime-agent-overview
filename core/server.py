@@ -6,7 +6,7 @@ GET /status returns the plugin's own report as JSON, for checking what is runnin
 import json
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Callable, Dict, Mapping, Optional, cast
+from typing import Any, Callable, Dict, List, Mapping, Optional, cast
 
 from .adapter import Adapter
 from .event import AgentEvent
@@ -45,6 +45,30 @@ def handle_payload(
     if event is not None:
         deliver(event)
     return 204
+
+
+class Inbox:
+    """Events handed from server threads to the main thread, drained a burst at a time.
+
+    Hooks fire on every tool call, often several at once; draining together means one redraw
+    per burst instead of one per event.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._events: List[AgentEvent] = []
+
+    def put(self, event: AgentEvent) -> bool:
+        """Queue `event`. True when the inbox was empty, so the caller must schedule a drain."""
+        with self._lock:
+            self._events.append(event)
+            return len(self._events) == 1
+
+    def drain(self) -> List[AgentEvent]:
+        """Every queued event, oldest first, leaving the inbox empty."""
+        with self._lock:
+            events, self._events = self._events, []
+        return events
 
 
 class _Handler(BaseHTTPRequestHandler):

@@ -48,12 +48,24 @@ class Session:
         self.subagents: List[Subagent] = []
 
 
+def _find(session: Session, subagent_id: Optional[str], kind: str = "") -> Optional[Subagent]:
+    """The subagent with `subagent_id`; for None, the first announced subagent of `kind`."""
+    return next(
+        (
+            s
+            for s in session.subagents
+            if s.id == subagent_id and (subagent_id is not None or s.kind == kind)
+        ),
+        None,
+    )
+
+
 def _start_subagent(session: Session, event: AgentEvent, now: float) -> None:
     kind = event.tool or ""
     if event.subagent is not None:
-        if any(s.id == event.subagent for s in session.subagents):
+        if _find(session, event.subagent) is not None:
             return
-        announced = next((s for s in session.subagents if s.id is None and s.kind == kind), None)
+        announced = _find(session, None, kind)
         if announced is not None:
             announced.id = event.subagent
             return
@@ -61,12 +73,10 @@ def _start_subagent(session: Session, event: AgentEvent, now: float) -> None:
 
 
 def _end_subagent(session: Session, event: AgentEvent) -> None:
-    if event.subagent is not None:
-        match = [s for s in session.subagents if s.id == event.subagent]
-    else:  # an announced subagent that never reported starting
-        match = [s for s in session.subagents if s.id is None and s.kind == (event.tool or "")]
-    if match:
-        session.subagents.remove(match[0])
+    # Without an id, an announced subagent that never reported starting.
+    subagent = _find(session, event.subagent, event.tool or "")
+    if subagent is not None:
+        session.subagents.remove(subagent)
 
 
 class SessionStore:
@@ -81,9 +91,8 @@ class SessionStore:
         if event.kind == SESSION_END:
             self._sessions.pop(key, None)
             return None
-        from_subagent = event.subagent is not None and event.kind in (TOOL_START, TOOL_END)
         if session is None:
-            if event.kind == SUBAGENT_END or from_subagent:
+            if event.kind == SUBAGENT_END or event.from_subagent:
                 return None  # a straggler from a session already cleared
             session = Session(key, display_name, self._next_order, now)
             self._next_order += 1
@@ -98,8 +107,8 @@ class SessionStore:
         if event.kind == SUBAGENT_END:
             _end_subagent(session, event)
             return session
-        if from_subagent:  # a subagent's own tool call; the parent is unchanged
-            subagent = next((s for s in session.subagents if s.id == event.subagent), None)
+        if event.from_subagent:
+            subagent = _find(session, event.subagent)
             if subagent is not None and event.kind == TOOL_START:
                 subagent.tool, subagent.target = event.tool, event.target
             return session

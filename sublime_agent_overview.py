@@ -12,11 +12,12 @@ from .agents import REGISTRY, installable
 from .core.adapter import Adapter
 from .core.event import AgentEvent
 from .core.fingerprint import changed, digests
-from .core.server import HOST, EventServer, handle_payload
+from .core.server import HOST, EventServer, Inbox, handle_payload
 from .core.state import Key, Session, SessionStore
 from .core.status import VIEW_NAME, AgentsView, agents_view, log_line, step, view_title
 
-SETTINGS = "SublimeAgentOverview.sublime-settings"
+NAME = "SublimeAgentOverview"  # prefixes console and status bar messages
+SETTINGS = NAME + ".sublime-settings"
 PANEL = "Agents"
 VIEW_SETTING = "sublime_agent_overview_view"  # marks a window's Agents view
 SYNTAX = f"Packages/{__package__}/Agents.sublime-syntax"
@@ -33,13 +34,17 @@ _store = SessionStore()
 _server: Optional[EventServer] = None
 _server_status = "not started"  # the Agents view's Server: line
 _rendered: Optional[AgentsView] = None  # what the Agents view shows now
+# buffer id -> (title, text) last written to that Agents view, so an unchanged one is skipped
+# without reading its whole buffer back.
+_shown: Dict[int, Tuple[str, str]] = {}
+_inbox = Inbox()
 _tick_generation = 0  # bumped on unload so the old timer stops
 _loaded_at = ""
 _loaded_code: Dict[str, str] = {}  # source path -> digest, for every module of this package
 
 
 def _console(message: str) -> None:
-    print("SublimeAgentOverview: " + message)
+    print(f"{NAME}: {message}")
 
 
 def _port() -> int:
@@ -63,27 +68,37 @@ def _row_of(rendered: AgentsView, key: Key) -> Optional[int]:
 
 
 def _refresh() -> None:
-    global _rendered
+    global _rendered, _shown
     views = _agents_views(sublime.windows())
     if not views:
+        _shown = {}
         return
     sessions = _store.all()
     rendered = agents_view(sessions, time.time(), _server_status)
     title = view_title(sessions)
+    shown: Dict[int, Tuple[str, str]] = {}
     for view in views:
+        buffer = view.buffer_id()
+        if buffer in shown:
+            continue  # a clone of a view already written
+        shown[buffer] = (title, rendered.text)
+        was = _shown.get(buffer)
+        if was is None and view.settings().get("syntax") != SYNTAX:
+            view.assign_syntax(SYNTAX)
+        if was is None or was[0] != title:
+            view.set_name(title)
+        if was is not None and was[1] == rendered.text:
+            continue
         line = _caret_line(view)
         # Keep the caret on the session it was on, wherever that session's row moved to.
         on_row = _rendered is not None and line in _rendered.rows
         key = _rendered.owners.get(line) if _rendered is not None and on_row else None
         moved = _row_of(rendered, key) if key is not None else None
-        if view.settings().get("syntax") != SYNTAX:
-            view.assign_syntax(SYNTAX)
-        if view.name() != title:
-            view.set_name(title)
         view.run_command(
             "sublime_agent_overview_write",
             {"content": rendered.text, "line": moved if moved is not None else line},
         )
+    _shown = shown
     _rendered = rendered
 
 
@@ -99,22 +114,27 @@ def _log(window: sublime.Window, line: str) -> None:
     panel.run_command("append", {"characters": line, "force": True, "scroll_to_end": True})
 
 
-def _on_event(event: AgentEvent) -> None:
-    """Main thread: record the event and update the Agents views and log."""
-    display_name = REGISTRY[event.agent].display_name
+def _drain() -> None:
+    """Main thread: record every queued event, then update the Agents views and log once."""
     now = time.time()
-    _store.apply(event, display_name, now)
+    lines: List[str] = []
+    for event in _inbox.drain():
+        display_name = REGISTRY[event.agent].display_name
+        _store.apply(event, display_name, now)
+        lines.append(log_line(event, display_name, now))
     _refresh()
-    _log(sublime.active_window(), log_line(event, display_name, now))
+    _log(sublime.active_window(), "".join(lines))
+
+
+def _deliver(event: AgentEvent) -> None:
+    """Server thread: queue the event; the first of a burst schedules the main-thread drain."""
+    if _inbox.put(event):
+        sublime.set_timeout(_drain, 0)
 
 
 def _on_payload(agent: str, payload: Any) -> int:
     """Server thread: parse here, hand the event to the main thread."""
-
-    def deliver(event: AgentEvent) -> None:
-        sublime.set_timeout(lambda: _on_event(event), 0)
-
-    return handle_payload(REGISTRY, agent, payload, deliver, _console)
+    return handle_payload(REGISTRY, agent, payload, _deliver, _console)
 
 
 def _package_modules() -> List[str]:
@@ -148,7 +168,7 @@ def plugin_loaded() -> None:
         server.start()
     except OSError as e:
         _console(f"could not listen on {HOST}:{port} ({e}); set another port in {SETTINGS}")
-        sublime.status_message(f"SublimeAgentOverview: port {port} unavailable — see console")
+        sublime.status_message(f"{NAME}: port {port} unavailable — see console")
         _server_status = f"port {port} unavailable — see console"
     else:
         _server = server
@@ -190,17 +210,22 @@ class SublimeAgentOverviewShowCommand(sublime_plugin.WindowCommand):
         self.window.focus_view(view)
 
 
-class SublimeAgentOverviewWriteCommand(sublime_plugin.TextCommand):
-    """Replace the Agents view's text and put the caret on `line`. Internal; run by `_refresh`."""
+class _Hidden:
+    """Keeps an Agents-view-only command out of the command palette and menus.
+
+    Not a Command subclass itself, so Sublime doesn't register it as a command.
+    """
 
     def is_visible(self) -> bool:
         return False
 
+
+class SublimeAgentOverviewWriteCommand(_Hidden, sublime_plugin.TextCommand):
+    """Replace the Agents view's text and put the caret on `line`. Internal; run by `_refresh`."""
+
     def run(self, edit: sublime.Edit, content: str, line: int) -> None:
         view = self.view
         whole = sublime.Region(0, view.size())
-        if view.substr(whole) == content:
-            return
         viewport = view.viewport_position()
         view.set_read_only(False)
         view.replace(edit, whole, content)
@@ -225,11 +250,8 @@ def _session_at_caret(view: sublime.View) -> Optional[Session]:
     return _store.get(key) if key is not None else None
 
 
-class SublimeAgentOverviewMoveCommand(sublime_plugin.TextCommand):
+class SublimeAgentOverviewMoveCommand(_Hidden, sublime_plugin.TextCommand):
     """Agents view: caret to the next/previous session, or the first session of a project."""
-
-    def is_visible(self) -> bool:
-        return False
 
     def run(self, edit: sublime.Edit, by: str, forward: bool) -> None:
         if _rendered is None:
@@ -245,11 +267,8 @@ class SublimeAgentOverviewMoveCommand(sublime_plugin.TextCommand):
             _go_to(self.view, target)
 
 
-class SublimeAgentOverviewJumpCommand(sublime_plugin.TextCommand):
+class SublimeAgentOverviewJumpCommand(_Hidden, sublime_plugin.TextCommand):
     """Agents view: caret to the first session of project `project` (1-based)."""
-
-    def is_visible(self) -> bool:
-        return False
 
     def run(self, edit: sublime.Edit, project: int) -> None:
         if _rendered is None:
@@ -272,11 +291,8 @@ def _window_for(path: str) -> Optional[sublime.Window]:
     return max(matches, key=lambda m: m[0])[1] if matches else None
 
 
-class SublimeAgentOverviewOpenCommand(sublime_plugin.TextCommand):
+class SublimeAgentOverviewOpenCommand(_Hidden, sublime_plugin.TextCommand):
     """Agents view: bring up the session's project folder, in a new window if none has it."""
-
-    def is_visible(self) -> bool:
-        return False
 
     def run(self, edit: sublime.Edit) -> None:
         session = _session_at_caret(self.view)
@@ -291,11 +307,8 @@ class SublimeAgentOverviewOpenCommand(sublime_plugin.TextCommand):
         window.bring_to_front()
 
 
-class SublimeAgentOverviewDismissCommand(sublime_plugin.TextCommand):
+class SublimeAgentOverviewDismissCommand(_Hidden, sublime_plugin.TextCommand):
     """Agents view: drop a session that ended without telling us."""
-
-    def is_visible(self) -> bool:
-        return False
 
     def run(self, edit: sublime.Edit) -> None:
         session = _session_at_caret(self.view)
@@ -304,11 +317,8 @@ class SublimeAgentOverviewDismissCommand(sublime_plugin.TextCommand):
             _refresh()
 
 
-class SublimeAgentOverviewRefreshCommand(sublime_plugin.TextCommand):
+class SublimeAgentOverviewRefreshCommand(_Hidden, sublime_plugin.TextCommand):
     """Agents view: redraw, then caret to the first session, like SublimeGit's refresh."""
-
-    def is_visible(self) -> bool:
-        return False
 
     def run(self, edit: sublime.Edit) -> None:
         _refresh()
@@ -334,7 +344,7 @@ def _pick_adapter(window: sublime.Window, action: str, apply: Callable[[Adapter]
             summary = apply(adapter)
         except (OSError, ValueError) as e:
             _console(f"{action} {adapter.display_name} hooks failed: {e}")
-            window.status_message(f"SublimeAgentOverview: {action} failed — see console")
+            window.status_message(f"{NAME}: {action} failed — see console")
             return
         _console(summary)
         window.status_message(summary)

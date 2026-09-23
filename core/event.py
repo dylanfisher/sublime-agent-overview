@@ -50,6 +50,11 @@ class AgentEvent(NamedTuple):
     # Whether the session runs without asking permission; None when the payload doesn't say.
     unsupervised: Optional[bool] = None
 
+    @property
+    def from_subagent(self) -> bool:
+        """A subagent's own tool call, which leaves its parent session unchanged."""
+        return self.subagent is not None and self.kind in (TOOL_START, TOOL_END)
+
 
 def shorten(text: str, limit: int = 40) -> str:
     """First line of `text`, cut to `limit` characters with an ellipsis."""

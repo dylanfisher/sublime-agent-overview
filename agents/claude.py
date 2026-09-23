@@ -84,10 +84,13 @@ COMMAND_RE = re.compile(r"http://127\.0\.0\.1:\d+/event/" + NAME + r"(\s|$)")
 JsonObject = Dict[str, Any]
 
 
+def _object(value: Any) -> JsonObject:
+    """`value` as a JSON object; empty when it is anything else, so every key reads as absent."""
+    return cast(JsonObject, value) if isinstance(value, dict) else {}
+
+
 def _target(tool_input: Any) -> Optional[str]:
-    if not isinstance(tool_input, dict):
-        return None
-    fields = cast(JsonObject, tool_input)
+    fields = _object(tool_input)
     for key in TARGET_KEYS:
         value = fields.get(key)
         if isinstance(value, str) and value.strip():
@@ -111,7 +114,7 @@ def _prompt(payload: JsonObject) -> Optional[str]:
 
 
 def _is_ours(hook: Any) -> bool:
-    command = cast(JsonObject, hook).get("command") if isinstance(hook, dict) else None
+    command = _object(hook).get("command")
     return isinstance(command, str) and COMMAND_RE.search(command) is not None
 
 
@@ -119,9 +122,7 @@ def _strip_ours(groups: List[Any]) -> int:
     """Remove our hook entries from an event's matcher groups, in place. Returns count removed."""
     removed = 0
     for group in list(groups):
-        if not isinstance(group, dict):
-            continue
-        hooks = cast(JsonObject, group).get("hooks")
+        hooks = _object(group).get("hooks")
         if not isinstance(hooks, list):
             continue
         entries = cast(List[Any], hooks)
@@ -135,18 +136,11 @@ def _strip_ours(groups: List[Any]) -> int:
 
 
 def _commands(group: Any) -> List[str]:
-    hooks = cast(JsonObject, group).get("hooks") if isinstance(group, dict) else None
+    hooks = _object(group).get("hooks")
     if not isinstance(hooks, list):
         return []
-    return [
-        c
-        for c in (
-            cast(JsonObject, h).get("command")
-            for h in cast(List[Any], hooks)
-            if isinstance(h, dict)
-        )
-        if isinstance(c, str)
-    ]
+    commands = (_object(h).get("command") for h in cast(List[Any], hooks))
+    return [c for c in commands if isinstance(c, str)]
 
 
 EventMaker = Callable[..., AgentEvent]
@@ -166,13 +160,10 @@ def _notification(payload: JsonObject, event: EventMaker) -> Optional[AgentEvent
 
 
 def _question(tool_input: Any) -> Optional[str]:
-    questions = (
-        cast(JsonObject, tool_input).get("questions") if isinstance(tool_input, dict) else None
-    )
+    questions = _object(tool_input).get("questions")
     if not isinstance(questions, list) or not questions:
         return None
-    first = cast(List[Any], questions)[0]
-    text = cast(JsonObject, first).get("question") if isinstance(first, dict) else None
+    text = _object(cast(List[Any], questions)[0]).get("question")
     return text if isinstance(text, str) else None
 
 
@@ -180,13 +171,12 @@ def _tool_event(name: str, payload: JsonObject, is_main: bool, event: EventMaker
     """PreToolUse / PostToolUse: a tool call, or one of the calls that mean more than that."""
     tool = _string(payload, "tool_name")
     tool_input = payload.get("tool_input")
-    fields = cast(JsonObject, tool_input) if isinstance(tool_input, dict) else {}
+    fields = _object(tool_input)
     starting = name == "PreToolUse"
     if tool in SUBAGENT_TOOLS:
         kind = fields.get("subagent_type")
         task = fields.get("description")
-        response = payload.get("tool_response")
-        result = cast(JsonObject, response) if isinstance(response, dict) else {}
+        result = _object(payload.get("tool_response"))
         launched = result.get("agentId") if result.get("status") == ASYNC_LAUNCHED else None
         return event(
             SUBAGENT_START if starting or launched else SUBAGENT_END,
@@ -219,6 +209,7 @@ class ClaudeAdapter(Adapter):
         if not session_id or not cwd:
             raise ValueError("missing session_id or cwd")
         mode = _string(payload, "permission_mode")
+        unsupervised = None if mode is None else mode in UNSUPERVISED_MODES
         subagent = _string(payload, "agent_id")
 
         def event(
@@ -228,7 +219,6 @@ class ClaudeAdapter(Adapter):
             message: Optional[str] = None,
             of: Optional[str] = subagent,
         ) -> AgentEvent:
-            unsupervised = None if mode is None else mode in UNSUPERVISED_MODES
             return AgentEvent(
                 NAME, session_id, cwd, kind, tool, target, message, payload, of, unsupervised
             )
