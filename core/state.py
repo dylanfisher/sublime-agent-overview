@@ -15,6 +15,7 @@ from .event import (
     TOOL_START,
     AgentEvent,
 )
+from .terminal import Terminal
 
 Key = Tuple[str, str]
 
@@ -43,6 +44,7 @@ class Session:
         self.message: Optional[str] = None
         self.prompt: Optional[str] = None  # the prompt that started the current turn
         self.unsupervised = False
+        self.terminal: Optional[Terminal] = None
         self.since = now  # when `kind` last changed
         self.turn_started: Optional[float] = None
         self.subagents: List[Subagent] = []
@@ -100,6 +102,8 @@ class SessionStore:
         session.cwd = event.cwd
         if event.unsupervised is not None:
             session.unsupervised = event.unsupervised
+        if event.terminal is not None:
+            session.terminal = event.terminal
 
         if event.kind == SUBAGENT_START:
             _start_subagent(session, event, now)

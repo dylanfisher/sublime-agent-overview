@@ -23,6 +23,7 @@ from ..core.event import (
     AgentEvent,
     shorten,
 )
+from ..core.terminal import CURL_HEADERS
 
 NAME = "claude"
 
@@ -75,7 +76,9 @@ TARGET_KEYS = ("file_path", "notebook_path", "command", "pattern", "url", "query
 PATH_KEYS = ("file_path", "notebook_path")
 
 COMMAND = (
-    "curl -s --max-time 1 -X POST --data-binary @- http://127.0.0.1:{port}/event/"
+    "curl -s --max-time 1 -X POST --data-binary @- "
+    + CURL_HEADERS
+    + " http://127.0.0.1:{port}/event/"
     + NAME
     + " || true"
 )

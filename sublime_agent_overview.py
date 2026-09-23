@@ -15,6 +15,7 @@ from .core.fingerprint import changed, digests
 from .core.server import HOST, EventServer, Inbox, handle_payload
 from .core.state import Key, Session, SessionStore
 from .core.status import VIEW_NAME, AgentsView, agents_view, log_line, step, view_title
+from .core.terminal import SCRIPTS, Terminal, focus, focus_command
 
 NAME = "SublimeAgentOverview"  # prefixes console and status bar messages
 SETTINGS = NAME + ".sublime-settings"
@@ -132,9 +133,9 @@ def _deliver(event: AgentEvent) -> None:
         sublime.set_timeout(_drain, 0)
 
 
-def _on_payload(agent: str, payload: Any) -> int:
+def _on_payload(agent: str, payload: Any, terminal: Optional[Terminal]) -> int:
     """Server thread: parse here, hand the event to the main thread."""
-    return handle_payload(REGISTRY, agent, payload, _deliver, _console)
+    return handle_payload(REGISTRY, agent, payload, terminal, _deliver, _console)
 
 
 def _package_modules() -> List[str]:
@@ -305,6 +306,37 @@ class SublimeAgentOverviewOpenCommand(_Hidden, sublime_plugin.TextCommand):
             window = sublime.active_window()
             window.set_project_data({"folders": [{"path": cwd}]})
         window.bring_to_front()
+
+
+def _focus(terminal: Terminal, command: List[str]) -> None:
+    """Async thread: run `command`, reporting a failure — osascript can take a moment."""
+    error = focus(command)
+    if error is not None:
+        _console(f"focusing {terminal.tty} failed: {error}")
+        sublime.status_message(f"{NAME}: could not focus terminal — see console")
+
+
+class SublimeAgentOverviewFocusTerminalCommand(_Hidden, sublime_plugin.TextCommand):
+    """Agents view: bring the session's terminal tab to the front."""
+
+    def run(self, edit: sublime.Edit) -> None:
+        session = _session_at_caret(self.view)
+        if session is None:
+            return
+        terminal = session.terminal
+        if terminal is None:
+            sublime.status_message(
+                f"{NAME}: terminal not known yet — install hooks, then wait for the next event"
+            )
+            return
+        command = focus_command(terminal)
+        if command is None:
+            supported = ", ".join(SCRIPTS)
+            sublime.status_message(
+                f"{NAME}: can't focus {terminal.program} tabs (supported: {supported})"
+            )
+            return
+        sublime.set_timeout_async(lambda: _focus(terminal, command))
 
 
 class SublimeAgentOverviewDismissCommand(_Hidden, sublime_plugin.TextCommand):

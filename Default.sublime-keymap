@@ -11,7 +11,8 @@
   { "keys": ["2"], "command": "sublime_agent_overview_jump", "args": { "project": 2 }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
   { "keys": ["3"], "command": "sublime_agent_overview_jump", "args": { "project": 3 }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
   { "keys": ["4"], "command": "sublime_agent_overview_jump", "args": { "project": 4 }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
-  { "keys": ["enter"], "command": "sublime_agent_overview_open", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["enter"], "command": "sublime_agent_overview_focus_terminal", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["primary+enter"], "command": "sublime_agent_overview_open", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
   { "keys": ["x"], "command": "sublime_agent_overview_dismiss", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
   { "keys": ["l"], "command": "sublime_agent_overview_show_log", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
 ]

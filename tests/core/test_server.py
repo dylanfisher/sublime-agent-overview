@@ -9,6 +9,7 @@ import pytest
 from SublimeAgentOverview.core.adapter import Adapter
 from SublimeAgentOverview.core.event import PROMPT, AgentEvent
 from SublimeAgentOverview.core.server import EventServer, Inbox, handle_payload
+from SublimeAgentOverview.core.terminal import Terminal
 
 
 class FakeAdapter(Adapter):
@@ -31,8 +32,10 @@ class Harness:
         self.delivered: List[AgentEvent] = []
         self.server = EventServer(0, self.on_payload, lambda: {"loaded": "now"})
 
-    def on_payload(self, agent: str, payload: Any) -> int:
-        return handle_payload(REGISTRY, agent, payload, self.delivered.append, lambda _: None)
+    def on_payload(self, agent: str, payload: Any, terminal: Optional[Terminal]) -> int:
+        return handle_payload(
+            REGISTRY, agent, payload, terminal, self.delivered.append, lambda _: None
+        )
 
     def get(self, path: str) -> Tuple[int, bytes]:
         url = f"http://127.0.0.1:{self.server.port}{path}"
@@ -42,10 +45,11 @@ class Harness:
         except urllib.error.HTTPError as e:
             return e.code, b""
 
-    def post(self, path: str, body: bytes) -> int:
+    def post(self, path: str, body: bytes, headers: Optional[Dict[str, str]] = None) -> int:
         url = f"http://127.0.0.1:{self.server.port}{path}"
+        request = urllib.request.Request(url, body, headers or {}, method="POST")
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, body, method="POST")) as r:
+            with urllib.request.urlopen(request) as r:
                 return r.status
         except urllib.error.HTTPError as e:
             return e.code
@@ -62,6 +66,13 @@ def h() -> Iterator[Harness]:
 def test_known_agent_is_delivered(h: Harness) -> None:
     assert h.post("/event/fake", json.dumps({"x": 1}).encode()) == 204
     assert [e.raw for e in h.delivered] == [{"x": 1}]
+
+
+def test_terminal_headers_ride_on_the_event(h: Harness) -> None:
+    headers = {"X-Term-Program": "Apple_Terminal", "X-Term-TTY": "ttys010 "}
+    assert h.post("/event/fake", b"{}", headers) == 204
+    assert h.post("/event/fake", b"{}") == 204
+    assert [e.terminal for e in h.delivered] == [Terminal("Apple_Terminal", "/dev/ttys010"), None]
 
 
 def test_unknown_agent_is_404(h: Harness) -> None:
@@ -95,11 +106,11 @@ def test_ignored_payload_is_accepted_but_not_delivered(h: Harness) -> None:
 
 def test_port_in_use_raises_oserror(h: Harness) -> None:
     with pytest.raises(OSError):
-        EventServer(h.server.port, lambda agent, payload: 204, dict).start()
+        EventServer(h.server.port, lambda agent, payload, terminal: 204, dict).start()
 
 
 def test_stop_releases_the_port() -> None:
-    srv = EventServer(0, lambda agent, payload: 204, dict)
+    srv = EventServer(0, lambda agent, payload, terminal: 204, dict)
     srv.start()
     port = srv.port
     srv.stop()

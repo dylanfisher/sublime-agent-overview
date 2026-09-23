@@ -56,7 +56,8 @@ HELP = """\
 #    p = previous session, P = previous project
 #
 # Sessions:
-#    enter = open project folder
+#    enter = focus terminal tab
+#    cmd+enter = open project folder
 #    x = dismiss session
 #    l = show log
 """

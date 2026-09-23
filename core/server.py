@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, cast
 
 from .adapter import Adapter
 from .event import AgentEvent
+from .terminal import PROGRAM_HEADER, TTY_HEADER, Terminal, parse
 
 HOST = "127.0.0.1"
 # How often serve_forever checks for shutdown; stop() (run on plugin reload) waits up to this.
@@ -17,8 +18,8 @@ POLL_SECONDS = 0.2
 PREFIX = "/event/"
 STATUS_PATH = "/status"
 
-# (agent name, parsed JSON body) -> HTTP status code
-PayloadHandler = Callable[[str, Any], int]
+# (agent name, parsed JSON body, terminal from the headers) -> HTTP status code
+PayloadHandler = Callable[[str, Any, Optional[Terminal]], int]
 StatusReport = Callable[[], Dict[str, Any]]
 
 
@@ -26,6 +27,7 @@ def handle_payload(
     registry: Mapping[str, Adapter],
     agent: str,
     payload: Any,
+    terminal: Optional[Terminal],
     deliver: Callable[[AgentEvent], None],
     log: Callable[[str], None],
 ) -> int:
@@ -43,7 +45,7 @@ def handle_payload(
         log(f"{agent}: bad payload: {e}")
         return 400
     if event is not None:
-        deliver(event)
+        deliver(event._replace(terminal=terminal))
     return 204
 
 
@@ -93,7 +95,8 @@ class _Handler(BaseHTTPRequestHandler):
         except ValueError:
             self.send_error(400, "body is not JSON")
             return
-        status = cast(_Server, self.server).on_payload(self.path[len(PREFIX) :], payload)
+        terminal = parse(self.headers.get(PROGRAM_HEADER), self.headers.get(TTY_HEADER))
+        status = cast(_Server, self.server).on_payload(self.path[len(PREFIX) :], payload, terminal)
         self.send_response(status)
         self.send_header("Content-Length", "0")
         self.end_headers()

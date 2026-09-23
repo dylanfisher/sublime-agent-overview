@@ -15,6 +15,7 @@ from SublimeAgentOverview.core.event import (
     AgentEvent,
 )
 from SublimeAgentOverview.core.state import Session, SessionStore
+from SublimeAgentOverview.core.terminal import Terminal
 
 
 def event(
@@ -190,3 +191,10 @@ def test_subagent_stragglers_do_not_revive_a_cleared_session() -> None:
     assert store.apply(event(SUBAGENT_END, subagent="e1"), "Claude", 0) is None
     assert store.apply(event(TOOL_END, tool="Read", subagent="e1"), "Claude", 0) is None
     assert store.all() == []
+
+
+def test_terminal_is_kept_when_a_later_event_has_none() -> None:
+    store = SessionStore()
+    tab = Terminal("Apple_Terminal", "/dev/ttys010")
+    session = apply_all(store, event(PROMPT)._replace(terminal=tab), event(DONE))
+    assert session.terminal == tab

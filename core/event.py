@@ -2,6 +2,8 @@
 
 from typing import Any, Dict, NamedTuple, Optional
 
+from .terminal import Terminal
+
 SESSION_START = "session_start"
 SESSION_END = "session_end"
 PROMPT = "prompt"
@@ -49,6 +51,8 @@ class AgentEvent(NamedTuple):
     subagent: Optional[str] = None
     # Whether the session runs without asking permission; None when the payload doesn't say.
     unsupervised: Optional[bool] = None
+    # The terminal tab the agent runs in, from the hook's headers rather than its payload.
+    terminal: Optional[Terminal] = None
 
     @property
     def from_subagent(self) -> bool:

@@ -23,7 +23,11 @@ from SublimeAgentOverview.core.event import (
 )
 
 BASE = {"session_id": "abc123", "cwd": "/code/app", "transcript_path": "/t.jsonl"}
-COMMAND = "curl -s --max-time 1 -X POST --data-binary @- http://127.0.0.1:{}/event/claude || true"
+COMMAND = (
+    "curl -s --max-time 1 -X POST --data-binary @- "
+    '-H "X-Term-Program: $TERM_PROGRAM" -H "X-Term-TTY: $(ps -o tty= -p $PPID)" '
+    "http://127.0.0.1:{}/event/claude || true"
+)
 
 
 def payload(hook: str, **fields: Any) -> Dict[str, Any]:
