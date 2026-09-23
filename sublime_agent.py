@@ -1,1 +1,0 @@
-"""SublimeAgent plugin entry point."""

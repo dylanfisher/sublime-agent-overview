@@ -1,0 +1,17 @@
+[
+  // Global: focus this window's Agents view, opening one if it has none.
+  { "keys": ["primary+k", "primary+j"], "command": "sublime_agent_overview_show" },
+  // Agents view keys, listed in the view's help block (core/status.py HELP).
+  { "keys": ["r"], "command": "sublime_agent_overview_refresh", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["n"], "command": "sublime_agent_overview_move", "args": { "by": "session", "forward": true }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["p"], "command": "sublime_agent_overview_move", "args": { "by": "session", "forward": false }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["N"], "command": "sublime_agent_overview_move", "args": { "by": "project", "forward": true }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["P"], "command": "sublime_agent_overview_move", "args": { "by": "project", "forward": false }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["1"], "command": "sublime_agent_overview_jump", "args": { "project": 1 }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["2"], "command": "sublime_agent_overview_jump", "args": { "project": 2 }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["3"], "command": "sublime_agent_overview_jump", "args": { "project": 3 }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["4"], "command": "sublime_agent_overview_jump", "args": { "project": 4 }, "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["enter"], "command": "sublime_agent_overview_open", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["x"], "command": "sublime_agent_overview_dismiss", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+  { "keys": ["l"], "command": "sublime_agent_overview_show_log", "context": [{ "key": "setting.sublime_agent_overview_view" }] },
+]

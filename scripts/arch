@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TIERS = {
     "core": sorted((ROOT / "core").rglob("*.py")),
     "agents": sorted((ROOT / "agents").rglob("*.py")),
-    "plugin": [ROOT / "sublime_agent.py"],
+    "plugin": [ROOT / "sublime_agent_overview.py"],
 }
 ALLOWED = {"core": set(), "agents": {"core"}, "plugin": {"core", "agents", "sublime"}}
 SUBLIME = {"sublime", "sublime_plugin"}

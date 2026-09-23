@@ -121,7 +121,7 @@ wheels = [
 ]
 
 [[package]]
-name = "sublime-agent"
+name = "sublime-agent-overview"
 version = "0.1.0"
 source = { virtual = "." }
 

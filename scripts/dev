@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Run the plugin locally: link this checkout into Sublime Text's Packages
-# directory as `SublimeAgent`, so Sublime loads it and live-reloads on save.
+# directory as `SublimeAgentOverview`, so Sublime loads it. Saving sublime_agent_overview.py
+# reloads the whole plugin; an edit under core/ or agents/ loads on that next save (or a
+# restart). GET http://127.0.0.1:<port>/status lists files changed since the last load.
 # Idempotent. The ONE place this is written down — README points here.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -8,7 +10,7 @@ cd "$(dirname "$0")/.."
 case "$(uname -s)" in
   Darwin) packages="$HOME/Library/Application Support/Sublime Text/Packages" ;;
   Linux)  packages="${XDG_CONFIG_HOME:-$HOME/.config}/sublime-text/Packages" ;;
-  *) printf '\033[31m✗ unsupported OS — link this directory into Packages/SublimeAgent by hand.\033[0m\n' >&2; exit 1 ;;
+  *) printf '\033[31m✗ unsupported OS — link this directory into Packages/SublimeAgentOverview by hand.\033[0m\n' >&2; exit 1 ;;
 esac
 
 if [ ! -d "$packages" ]; then
@@ -16,7 +18,7 @@ if [ ! -d "$packages" ]; then
   exit 1
 fi
 
-link="$packages/SublimeAgent"
+link="$packages/SublimeAgentOverview"
 if [ -L "$link" ]; then
   echo "✓ already linked: $link → $(readlink "$link")"
 elif [ -e "$link" ]; then

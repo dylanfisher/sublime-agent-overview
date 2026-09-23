@@ -10,7 +10,7 @@ Instructions for AI coding agents working in this repo. Humans: see [README.md](
 - **Package manager:** uv (dev tools only — ruff, basedpyright strict, pytest)
 - **Framework:** Sublime Text 4 plugin API
 - **Test framework:** pytest
-- **Layout:** repo root is the package; `core/` ← `agents/` ← `sublime_agent.py`, tests in `tests/` — tiers and search recipes: [docs/map.md](docs/map.md)
+- **Layout:** repo root is the package; `core/` ← `agents/` ← `sublime_agent_overview.py`, tests in `tests/` — tiers and search recipes: [docs/map.md](docs/map.md)
 
 ## Commands
 

@@ -14,4 +14,13 @@ fi
 # The plugin itself has no runtime dependencies.
 uv sync --locked
 
+# Sublime imports this checkout as the package `SublimeAgentOverview`; tests and the type
+# checker import it by that name through these links (see pyproject.toml). Links
+# per subpackage, not to the root: a link to the root would sit inside the package
+# it points at, and Sublime's resource scan would recurse into it.
+mkdir -p .venv/pkgroot/SublimeAgentOverview
+for init in */__init__.py; do
+  ln -sfn "$PWD/${init%/__init__.py}" ".venv/pkgroot/SublimeAgentOverview/${init%/__init__.py}"
+done
+
 echo "✓ setup complete"

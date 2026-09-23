@@ -1,5 +1,5 @@
 [project]
-name = "sublime-agent"
+name = "sublime-agent-overview"
 version = "0.1.0"
 description = "Live activity from AI coding agents in Sublime Text 4."
 requires-python = ">=3.8,<3.9"
@@ -19,12 +19,18 @@ extend-include = ["scripts/arch"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["SublimeAgentOverview"]
+
 [tool.basedpyright]
 pythonVersion = "3.8"
 typeCheckingMode = "strict"
-include = ["sublime_agent.py", "core", "agents", "tests"]
+include = ["sublime_agent_overview.py", "core", "agents", "tests"]
 exclude = ["**/__pycache__", ".venv"]
+extraPaths = [".venv/pkgroot"]
+# `sublime` only exists inside the editor; typings/ holds its stubs.
+reportMissingModuleSource = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = [".venv/pkgroot"]

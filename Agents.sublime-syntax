@@ -1,0 +1,140 @@
+%YAML 1.2
+---
+# Syntax for the Agents view built by core/status.py.
+#
+# Colors are foreground-only: markup.deleted/changed/inserted (red/orange/green in the bundled
+# schemes) and a few code scopes for cyan, purple and pink. Not region.*ish — most schemes paint
+# those as a background. Each scope ends in the state's name, so a scheme can recolor it.
+# The help block copies SublimeGit's *git-status* view: comment text, string-colored keys.
+name: SublimeAgentOverview Agents
+scope: text.sublime-agent-overview
+version: 2
+hidden: true
+
+contexts:
+  main:
+    # The help block at the bottom of the view; runs to the end of the buffer.
+    - match: '^# Movement:'
+      push: help
+
+    - match: '^Agent Overview\n'
+      scope: markup.heading.sublime-agent-overview.title
+    - match: '^(Server:)\s+(.+)\n'
+      captures:
+        1: comment.other.sublime-agent-overview.header
+        2: string.other.sublime-agent-overview.server
+    - match: '^(Sessions:)'
+      captures:
+        1: comment.other.sublime-agent-overview.header
+      push: summary
+    - match: '^No active agents\n'
+      scope: comment.other.sublime-agent-overview.empty
+
+    # "<project>  <path>[  ·  N sessions]"
+    - match: '^(\S+)  (.+)\n'
+      captures:
+        1: markup.bold.sublime-agent-overview.project
+        2: comment.other.sublime-agent-overview.path
+
+    # "  <glyph> <label>  <elapsed>  <detail>"
+    - match: '^  (■) (\w+)'
+      captures:
+        1: markup.deleted.sublime-agent-overview.permission markup.bold.sublime-agent-overview
+        2: markup.deleted.sublime-agent-overview.permission markup.bold.sublime-agent-overview
+      push: [row, elapsed]
+    - match: '^  (◆) (\w+)'
+      captures:
+        1: markup.changed.sublime-agent-overview.plan markup.bold.sublime-agent-overview
+        2: markup.changed.sublime-agent-overview.plan markup.bold.sublime-agent-overview
+      push: [row, elapsed]
+    - match: '^  (●) (\w+)'
+      captures:
+        1: markup.changed.sublime-agent-overview.waiting markup.bold.sublime-agent-overview
+        2: markup.changed.sublime-agent-overview.waiting markup.bold.sublime-agent-overview
+      push: [row, elapsed]
+    - match: '^  (✗) (\w+)'
+      captures:
+        1: markup.deleted.sublime-agent-overview.error
+        2: markup.deleted.sublime-agent-overview.error
+      push: [row, elapsed]
+    - match: '^  (▶) (\w+)'
+      captures:
+        1: markup.changed.sublime-agent-overview.working
+        2: markup.changed.sublime-agent-overview.working
+      push: [row, elapsed]
+    - match: '^  (◐) (\w+)'
+      captures:
+        1: support.function.sublime-agent-overview.thinking
+        2: support.function.sublime-agent-overview.thinking
+      push: [row, elapsed]
+    - match: '^  (✓) (\w+)'
+      captures:
+        1: markup.inserted.sublime-agent-overview.done
+        2: markup.inserted.sublime-agent-overview.done
+      push: [row, elapsed]
+    - match: '^  (○) (\w+)'
+      scope: comment.other.sublime-agent-overview.idle
+      push: [row, elapsed]
+
+    # "    ├ ◦  <elapsed>  <type>  "<task>"  <activity>"
+    - match: '^    ([├└]) (◦)'
+      captures:
+        1: constant.numeric.sublime-agent-overview.subagent
+        2: constant.numeric.sublime-agent-overview.subagent
+      push: [row, subagent-type, elapsed]
+
+  row:
+    - match: '"[^"\n]*"'
+      scope: markup.italic.sublime-agent-overview.quote
+    - match: '\bbypass\b'
+      scope: keyword.other.sublime-agent-overview.unsupervised
+    - match: '\n'
+      pop: 1
+
+  # The fixed-width column right after the state, before any free text.
+  elapsed:
+    - match: '\s+(\d+[hms]\w*(?: ago)?)'
+      captures:
+        1: comment.other.sublime-agent-overview.elapsed
+      pop: 1
+    - match: '(?=\S|\n)'
+      pop: 1
+
+  subagent-type:
+    - match: '\s+(\S+)'
+      captures:
+        1: constant.numeric.sublime-agent-overview.subagent
+      pop: 1
+    - match: '(?=\n)'
+      pop: 1
+
+  summary:
+    - match: '·'
+      scope: comment.other.sublime-agent-overview.separator
+    - match: '■'
+      scope: markup.deleted.sublime-agent-overview.permission
+    - match: '◆'
+      scope: markup.changed.sublime-agent-overview.plan
+    - match: '●'
+      scope: markup.changed.sublime-agent-overview.waiting
+    - match: '✗'
+      scope: markup.deleted.sublime-agent-overview.error
+    - match: '▶'
+      scope: markup.changed.sublime-agent-overview.working
+    - match: '◐'
+      scope: support.function.sublime-agent-overview.thinking
+    - match: '✓'
+      scope: markup.inserted.sublime-agent-overview.done
+    - match: '○'
+      scope: comment.other.sublime-agent-overview.idle
+    - match: '◦'
+      scope: constant.numeric.sublime-agent-overview.subagent
+    - match: '\n'
+      pop: 1
+
+  help:
+    - meta_scope: comment.sublime-agent-overview.help
+    - match: '((?:(?:ctrl\+|super\+|alt\+|shift\+)*\w)?(?:\w-)?\w*) ='
+      scope: comment.sublime-agent-overview.help
+      captures:
+        1: string.other.sublime-agent-overview.help.key

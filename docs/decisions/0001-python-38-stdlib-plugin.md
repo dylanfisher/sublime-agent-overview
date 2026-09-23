@@ -5,7 +5,7 @@
 
 ## Context
 
-SublimeAgent shows live AI-agent activity inside Sublime Text 4. It runs in Sublime's plugin
+SublimeAgentOverview shows live AI-agent activity inside Sublime Text 4. It runs in Sublime's plugin
 host, which ships its own Python and has no package installer: anything the plugin imports must be
 in the package itself. The first agent is Claude Code, fed by hook commands that `curl` a
 localhost endpoint; more agents are expected.
@@ -26,7 +26,7 @@ The repo root is the package; logic that doesn't touch the `sublime` API lives i
 - **mypy** — rejected: recent releases no longer type-check against a 3.8 target; basedpyright does.
 - **pip + requirements-dev.txt** — rejected: uv gives a lockfile and installs the pinned Python
   in one command.
-- **Plugin in a `SublimeAgent/` subdirectory** — rejected: a root-level package symlinks
+- **Plugin in a `SublimeAgentOverview/` subdirectory** — rejected: a root-level package symlinks
   straight into `Packages/` for development.
 
 ## Consequences
